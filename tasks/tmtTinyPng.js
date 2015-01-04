@@ -165,6 +165,5 @@ module.exports = function (grunt) {
                 q.push(file);
             })
         });
-        yes
     })
 };
