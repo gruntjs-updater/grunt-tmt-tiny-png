@@ -3,7 +3,7 @@
   "description": "The best Grunt plugin ever.",
   "version": "0.1.0",
   "homepage": "https://github.com/funfungo/grunt-tmtTinyPng",
-  "author": {"funfungo<funfungo@foxmail.com>"},
+  "author": "funfungo",
   "repository": {
     "type": "git",
     "url": "git://github.com/funfungo/grunt-tmtTinyPng"
