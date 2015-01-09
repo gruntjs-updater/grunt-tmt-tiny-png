@@ -66,28 +66,12 @@ module.exports = function (grunt) {
                 fs.writeFileSync("key.txt",KEY.join(","),"utf-8");
             }
         }
-        //
-        function writeData(data,file){
-            var readFile = fs.createReadStream(file);
-            var writeFile = fs.createWriteStream(file);
-            var content = "";
-            readFile.on("data",function(chunk){
-                writeFile.write(chunk);
-            });
-            readFile.on("end",function(){
-                writeFile.write("\n");
-                for(var key in data){
-                    console.log(key);
-                    if(key !== inputSize && key !== outputSize && key != ratio && key !== "total time");
-                    {
-                        writeFile.write(key+"\t"+data[key].inputSize+"\t"+data[key].outputSize+"\t"+data[key].uploadTime+"\t"+data[key].downloadTime+"\n");
-                    }
-                }
-            });
-        }
-
 
         var q = async.queue(function(file,callback){
+            var dir = path.dirname(file);
+            var ext = path.extname(file);
+            var base = path.basename(file,ext);
+            var tempFile = path.join(dir + "\\" + base + "_temp" + ext);
             (function upload(file){
                 localStart[file] = new Date();
                 grunt.log.ok("uploading..." + file);
@@ -105,7 +89,7 @@ module.exports = function (grunt) {
                             (function getPng(file){
                                 localStart[file] = new Date();
                                 console.log(response.headers.location);
-                                request({uri:response.headers.location,timeout:2000,Pool:false})
+                                request({uri:response.headers.location,timeout:10000,Pool:false})
                                     .on("error",function(error){
                                         grunt.log.error("downloading ERROR " + error.message);
                                         getPng(file);
@@ -113,9 +97,17 @@ module.exports = function (grunt) {
                                     .on("end",function(){
                                         timeData[file].downloadTime = getTime(localStart[file]);
                                         grunt.log.ok(file + " downloaded");
+                                        fs.stat(tempFile,function(err,stats){
+                                            console.log(JSON.stringify(stats));
+                                            if(stats.size == 0){
+                                                fs.unlink(tempFile);
+                                            }else{
+                                                fs.rename(tempFile,file);
+                                            }
+                                        });
                                         callback();
                                     })
-                                    .pipe(fs.createWriteStream(file));
+                                    .pipe(fs.createWriteStream(tempFile));
                             })(file);
                         }else if(response.statusCode == 429){
                             removeBadKey(keyIndex);
@@ -150,7 +142,7 @@ module.exports = function (grunt) {
             timeData["outputSize"] = outputSize;
             timeData["ratio"] = outputSize/inputSize;
             timeData["total time"] = getTime(startTime);
-            console.log(timeData);
+//            console.log(timeData);
 //            writeData(timeData,"test.xlsx");
             done();
         };
