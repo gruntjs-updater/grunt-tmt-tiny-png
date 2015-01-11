@@ -1,13 +1,2 @@
-.gitignore
-
-#logs
-logs
-
-#local test
 test.js
-
-# Dependency directory
 node_modules
-
-# Debug log from npm
-npm-debug.log
