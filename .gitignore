@@ -1,3 +1,9 @@
+#logs
+logs
+
+#local test
+test.js
+
 # Dependency directory
 node_modules
 
