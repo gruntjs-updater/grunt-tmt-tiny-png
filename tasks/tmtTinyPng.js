@@ -11,8 +11,6 @@ var request = require("request");
 var fs = require("fs");
 var path = require("path");
 var async = require("async");
-var KEY = ["DCW-nZpuisKWg5iZV8rH0k335X7z_Bjb","eEamUCpDZYQ7zaj-frcAycqaKsB4Bou5","3zdVSHVOGk6xnn71-3JfOh1-l-BROnKQ",
-    "pVOpSrHyzPyTLqWrqkRJHAptvThQI9VU","FpzjI6viK9Q1hhFoZqXmpMzNj6VFkYMO","2lADPJQnfA3g8R1n6ObMuedbWh2ggxNq","pRLOxoMPpkLbFyAly7sRGoIWeVcQWt_i","uIS21F7vsXXZhJ599Wb3MsriVxgt5JYz"];
 
 module.exports = function (grunt) {
     // Please see the Grunt documentation for more information regarding task
@@ -20,64 +18,77 @@ module.exports = function (grunt) {
 
 
     grunt.registerMultiTask("tmtTinyPng", "The best Grunt plugin ever.", function () {
-        var done = this.async();
-        var timeData = {};
-        var keyarr = fs.readFileSync("key.txt","utf-8").split(",");
-        var apiKey = getKey();
-        var keyIndex;
-        var startTime,endTime,localStart = {};
-        var inputSize = 0,outputSize = 0;
-        var pressMessage={};
-        var options = {
-            uri: "https://api.tinypng.com/shrink",
-            method: "POST",
-            auth: {
-                user: "api",
-                pass: apiKey
-            },
-            timeout: 15000
-        };
+
+        //read keys from key.json as an array
+        function getKeyInfo(keyJson){
+            var keyInfo = {};
+            keyInfo.arr = [];
+            keyInfo.updateYear = keyJson[0].updateYear;
+            keyInfo.updateMonth = keyJson[0].updateMonth;
+            for(var i = 0; i<keyJson.length; i++){
+                if(keyJson[i].expire == "false"){
+                    keyInfo.arr.push(keyJson[i].key);
+                }
+            }
+            return keyInfo;
+        }
+
         //Calculate the time gap
         function getTime(startTime){
             endTime = new Date();
             return (endTime-startTime)/1000;
         }
+
         //Get the Api key from tinypng.com
         //See https://tinypng.com/developers
-        function getKey(){
-            keyIndex = Math.floor(Math.random()*keyarr.length);
-            console.log(keyarr[keyIndex]);
-            return keyarr[keyIndex];
+        function getKey(arr){
+            keyIndex = Math.floor(Math.random()*arr.length);
+            console.log(arr[keyIndex]);
+            return arr[keyIndex];
         }
+
         //Romove the useless api key from key file and draw a new key from it
         function removeBadKey(keyIndex){
-            if(keyarr.indexOf(apiKey) != -1){
-                keyarr.splice(keyIndex,1);
-            }
-            apiKey = getKey();
-            options.auth.pass = apiKey;
-            fs.writeFileSync("key.txt",keyarr.join(","),"utf-8");
+            keyJson[keyIndex + 1].expire = "true";
+            fs.writeFile("key.json",JSON.stringify(keyJson));
         }
+
         //reset the key file in the beginning of every month
         function resetKeyFile(){
             startTime = new Date();
+            var month = startTime.getMonth() + 1;
+            var year = startTime.getFullYear();
             var date = startTime.getDate();
-            if(date >= 2 && date < 10){
-                fs.writeFileSync("key.txt",KEY.join(","),"utf-8");
+            if((month > keyInfo.updateMonth || year > keyInfo.updateYear) && date >1 ){
+                console.log("yes");
+                keyJson[0].updateYear = year;
+                keyJson[0].updateMonth = month;
+                for(var i = 1; i<keyJson.length; i++){
+                    keyJson[i].expire = "false";
+                }
+                fs.writeFile("key.json",JSON.stringify(keyJson));
             }
+
         }
 
         var q = async.queue(function(file,callback){
+
             var dir = path.dirname(file);
             var ext = path.extname(file);
             var base = path.basename(file,ext);
             var tempFile = path.join(dir + "\\" + base + "_temp" + ext);
+
+
             (function upload(file){
+
                 localStart[file] = new Date();
                 grunt.log.ok("uploading..." + file);
                 timeData[file].uploadCount ++;
+
                 fs.createReadStream(file).pipe(request(options,function(error,response){
+
                     if(!error){
+
                         if(response.statusCode == 201){
                             pressMessage = JSON.parse(response.body);
                             inputSize += pressMessage.input.size;
@@ -95,10 +106,11 @@ module.exports = function (grunt) {
                                         getPng(file);
                                     })
                                     .on("end",function(){
+
                                         timeData[file].downloadTime = getTime(localStart[file]);
                                         grunt.log.ok(file + " downloaded");
+
                                         fs.stat(tempFile,function(err,stats){
-                                            console.log(JSON.stringify(stats));
                                             if(stats.size == 0){
                                                 fs.unlink(tempFile);
                                             }else{
@@ -117,9 +129,7 @@ module.exports = function (grunt) {
                             callback();
                         }
                         else{
-                            if(timeData[file].uploadCount <= 5) {
-                                q.push(file);
-                            }
+                            q.push(file);
                             grunt.log.error("error" + response.statusCode);
                             callback();
                         }
@@ -142,19 +152,40 @@ module.exports = function (grunt) {
             timeData["outputSize"] = outputSize;
             timeData["ratio"] = outputSize/inputSize;
             timeData["total time"] = getTime(startTime);
-//            console.log(timeData);
-//            writeData(timeData,"test.xlsx");
+            console.log(timeData);
             done();
         };
 
-        //begin
+
+        var done = this.async();
+        var timeData = {};
+        var keyJson = JSON.parse(fs.readFileSync("key.json"));// parse key.json
+        var keyInfo = getKeyInfo(keyJson);//get info from keyJson
+        var apiKey = getKey(keyInfo.arr);//get a random api key for use
+        var keyIndex;
+        var startTime,endTime,localStart = {};
+        var inputSize = 0,outputSize = 0;
+        var pressMessage={};
+        var options = {
+            uri: "https://api.tinypng.com/shrink",
+            method: "POST",
+            auth: {
+                user: "api",
+                pass: apiKey
+            },
+            timeout: 15000
+        };
+
         resetKeyFile();
         this.files.forEach(function(f){
+
             f.src.forEach(function(file){
+
                 timeData[file] = {};
                 timeData[file].uploadCount = 0;
                 timeData[file].testTime = new Date();
                 q.push(file);
+
             })
         });
     })
