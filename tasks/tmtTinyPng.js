@@ -11,6 +11,21 @@ var request = require("request");
 var fs = require("fs");
 var path = require("path");
 var async = require("async");
+var log4js = require("log4js");
+
+log4js.configure({
+    appenders: [
+        { type: 'console' }, //控制台输出
+        {
+            type: 'file', //文件输出
+            filename: 'logs/access.log',
+            maxLogSize: 1024,
+            backups:3,
+            category: 'normal'
+        }
+    ]
+});
+var logger = log4js.getLogger('normal');
 
 module.exports = function (grunt) {
     // Please see the Grunt documentation for more information regarding task
@@ -152,7 +167,7 @@ module.exports = function (grunt) {
             timeData["outputSize"] = outputSize;
             timeData["ratio"] = outputSize/inputSize;
             timeData["total time"] = getTime(startTime);
-            console.log(timeData);
+            logger.info(timeData);
             done();
         };
 
