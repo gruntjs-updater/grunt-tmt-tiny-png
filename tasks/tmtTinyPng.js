@@ -112,16 +112,17 @@ module.exports = function (grunt) {
                             timeData[file].inputSize = pressMessage.input.size;
                             timeData[file].outputSize = pressMessage.output.size;
                             grunt.log.ok(file + " compressed OK");
+
                             (function getPng(file){
                                 localStart[file] = new Date();
                                 console.log(response.headers.location);
-                                request({uri:response.headers.location,timeout:10000,Pool:false})
+                                request({uri:response.headers.location,timeout:10000})
                                     .on("error",function(error){
                                         grunt.log.error("downloading ERROR " + error.message);
                                         getPng(file);
                                     })
-                                    .on("end",function(){
-
+                                    .pipe(fs.createWriteStream(tempFile))
+                                    .on("close",function(){
                                         timeData[file].downloadTime = getTime(localStart[file]);
                                         grunt.log.ok(file + " downloaded");
 
@@ -133,8 +134,7 @@ module.exports = function (grunt) {
                                             }
                                         });
                                         callback();
-                                    })
-                                    .pipe(fs.createWriteStream(tempFile));
+                                    });
                             })(file);
                         }else if(response.statusCode == 429){
                             removeBadKey(keyIndex);
